@@ -12,14 +12,22 @@ public class MenuUI : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        StartGame.gameObject.SetActive(false);
+        nameInput.gameObject.SetActive(false);
         StartGame.onClick.AddListener(JoinGame);
         multiplayerManager = ManagerLocator.Instance.GetMultiplayerManager();
+        multiplayerManager.OnPlayerConnected += OnConnected;
     }
 
+    public void OnConnected()
+    {
+        StartGame.gameObject.SetActive(true);
+        nameInput.gameObject.SetActive(true);
+    }
     public void JoinGame()
     {
         string name = nameInput.text;
-        multiplayerManager.JoinGame(name);
+        multiplayerManager.Register(name);
         gameObject.SetActive(false);
     }
     private void OnDisable()

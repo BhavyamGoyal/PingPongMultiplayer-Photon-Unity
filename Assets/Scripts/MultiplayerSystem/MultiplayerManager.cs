@@ -1,101 +1,81 @@
 ﻿using UnityEngine;
 using UnityEditor;
-using SocketIO;
 using System;
 using Commons;
-using Player;
+using PlayerSystem;
 using InpuSystem;
+using Photon.Pun;
+using Photon.Realtime;
 
 namespace MultiplayerSystem
 {
-    public class MultiplayerManager : SocketIOComponent
+    public class MultiplayerManager : MonoBehaviourPunCallbacks
     {
-        public event Action<PlayerData> OnPlayerConnected;
-        public event Action<PlayerData> OnPlayerJoined;
-        public event Action<UpdateData> OnGameUpdate;
-        public event Action OnGamePlayStarted;
-        public event Action<UpdateData> OnPadMoved;
-
+        public event Action OnPlayerConnected;
+        public event Action<int,string> OnPlayerJoinedRoom;
+        public event Action OnGameStart;
+        //public event Action<UpdateData> OnGameUpdate;
+        //public event Action OnGamePlayStarted;
+        //public event Action<UpdateData> OnPadMoved;
         PlayerManager playerManager;
-        public override void Start()
+        public void Awake()
         {
-            base.Start();
-            playerManager = ManagerLocator.Instance.GetPlayerManager();
-            On("onConnected", OnConnected);
-            On("onUserRegister", OnRegister);
-            On("onJoinGame", PlayerJoined);
-            On("onGameStarted", OnGameStarted);
-            On("onServerUpdate", OnServerUpdate);
-        }
-        private void OnConnected(SocketIOEvent socketEvent)
-        {
-            Debug.Log("[MultiplayerManager]OnConnected" + socketEvent.data.ToString());
-        }
-        private void OnServerUpdate(SocketIOEvent socketEvent)
-        {
-            Debug.Log("[MultiplayerManager]Position Updating" + socketEvent.data.ToString());
-            UpdateData updateData = new UpdateData();
-            BallData ballData = new BallData();
-            JSONObject ballPositionObject = socketEvent.data.GetField("ball");
-            //Debug.Log("<color=red> ball positon on server update +received </color>" + ballPositionObject.ToString());
-            ballPositionObject.GetField(ref ballData.xPos, "xPos");
-            ballPositionObject.GetField(ref ballData.yPos, "yPos");
-            updateData.ballPos = ballData;
-            JSONObject padsPositionsObject = socketEvent.data.GetField("pads");
-            if (padsPositionsObject.keys.Count != 0)
-            {
-                for (int i = 0; i < padsPositionsObject.keys.Count; i++)
-                {
-                    PadData pData = new PadData();
-                    JSONObject padPos = padsPositionsObject.GetField(padsPositionsObject.keys[i]);
-                    padPos.GetField(ref pData.xPos, "xPos");
-                    padPos.GetField(ref pData.yPos, "yPos");
-
-                    updateData.padData.Add(padsPositionsObject.keys[i], pData);
-                }
-                OnPadMoved.Invoke(updateData);
-            }
-            OnGameUpdate.Invoke(updateData);
-        }
-        private void OnRegister(SocketIOEvent socketEvent)
-        {
-            Debug.Log("[MultiplayerManager]OnRegister" + socketEvent.data.ToString());
-            PlayerData playerData = new PlayerData();
-            socketEvent.data.GetField(ref playerData.playerID, "playerID");
-            socketEvent.data.GetField(ref playerData.playerName, "playerName");
-            OnPlayerConnected.Invoke(playerData);
-            JoinRoom();
-        }
-        private void OnGameStarted(SocketIOEvent socketEvent)
-        {
-
-            Debug.Log("[MultiplayerManager]OnGameStarted" + socketEvent.data.ToString());
-            string message = "GameStarted";
-            OnGamePlayStarted.Invoke();
-        }
-        public void sendInput(InputStructure inputData)
-        {
-            JSONObject dataToSend = new JSONObject();
-            dataToSend.AddField("direction", inputData.direction);
-            Emit("sendInput", dataToSend);
-        }
-        private void PlayerJoined(SocketIOEvent socketEvent)
-        {
-            Debug.Log("[MultiplayerManager]PlayerJoined" + socketEvent.data.ToString());
-            PlayerData playerData = new PlayerData();
-            socketEvent.data.GetField(ref playerData.playerID, "playerID");
-            socketEvent.data.GetField(ref playerData.spawnPoint, "playerSpawn");
-            OnPlayerJoined.Invoke(playerData);
-        }
-        public void JoinGame(string name)
-        {
-            JSONObject dataToSend = new JSONObject();
-            dataToSend.AddField("playerName", name);
-            Emit("registerUser", dataToSend);
+            PhotonNetwork.ConnectUsingSettings();
         }
         public void JoinRoom()
         {
-            Emit("joinRoom");
+            PhotonNetwork.JoinRandomRoom();
+        }
+        public override void OnConnectedToMaster()
+        {
+            OnPlayerConnected?.Invoke();
+            Debug.Log("<color=red>Player connected to master</color>");
+        }
+        public void Register(string name)
+        {
+            PhotonNetwork.NickName = name;  
+            PhotonNetwork.JoinLobby();
+        }
+        public override void OnPlayerEnteredRoom(Player newPlayer)
+        {
+            Debug.Log("<color=red>On Remote PlayerJoined </color>"+ newPlayer.NickName);
+            if (PhotonNetwork.CurrentRoom.PlayerCount == 2)
+            {
+                OnGameStart.Invoke();
+            }
+            // OnPlayerJoinedRoom.Invoke(PhotonNetwork.CurrentRoom.PlayerCount - 1, PhotonNetwork.NickName);
+        }
+        public override void OnJoinedLobby()
+        {
+            Debug.Log("<color=red>Player Joined Lobby</color>");
+            JoinRoom();
+        }
+        public override void OnJoinedRoom()
+        {
+            Debug.Log("<color=red>Player Joined Room </color>"+PhotonNetwork.CurrentRoom.Name);
+            OnPlayerJoinedRoom.Invoke(PhotonNetwork.CurrentRoom.PlayerCount - 1,PhotonNetwork.NickName);
+            if (PhotonNetwork.CurrentRoom.PlayerCount == 1)
+            {
+                OnGameStart.Invoke();
+            }
+        }
+        public override void OnJoinRoomFailed(short returnCode, string message)
+        {
+            Debug.Log("<color=red> Join Room Failed</color>");
+            CreateRoom();
+            //PhotonNetwork.JoinRandomRoom();
+        }
+        public override void OnJoinRandomFailed(short returnCode, string message)
+        {
+            Debug.Log("<color=red> Join Random Room Failed</color>");
+            CreateRoom();
+            //PhotonNetwork.JoinRandomRoom();
+        }
+        public void CreateRoom()
+        {
+            RoomOptions roomOptions = new RoomOptions();
+            roomOptions.MaxPlayers = 2;
+            PhotonNetwork.CreateRoom("Room" + PhotonNetwork.CountOfRooms);
         }
     }
 }

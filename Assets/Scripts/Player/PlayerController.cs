@@ -1,34 +1,35 @@
-﻿using System.Collections;
+﻿using Photon.Pun;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-namespace Player
+namespace PlayerSystem
 {
     public class PlayerController
     {
-        string playerID;
+        int playerID;
         string playerName;
         private PlayerView view;
-        public PlayerController(string playerID, string playerName)
+        public PlayerController(int playerID, string playerName)
         {
             this.playerID = playerID;
             this.playerName = playerName;
         }
         public void InitializePlayer(PlayerView playerPrefab, Vector3 position, float speed)
         {
-            view = GameObject.Instantiate(playerPrefab.gameObject, position, Quaternion.identity, null).GetComponent<PlayerView>();
+            view = PhotonNetwork.Instantiate("Player_Pad",position,Quaternion.identity).GetComponent<PlayerView>();
             view.SetController(this);
            // view.SetSpeed(speed);
         }
         public void SetPlayerMaterial(Material playerMat)
         {
-
             view.SetPlayerMaterial(playerMat);
         }
-        public void MovePad(PadData data)
+        public void MovePad(int dir)
         {
-            view.MovePad(data);
+
+            view.MovePad(dir);
         }
-        public string GetPlayerID()
+        public int GetPlayerID()
         {
             return playerID;
         }

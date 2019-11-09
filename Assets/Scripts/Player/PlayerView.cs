@@ -1,7 +1,8 @@
-﻿using System.Collections;
+﻿using Photon.Pun;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-namespace Player
+namespace PlayerSystem
 {
     public class PlayerView : MonoBehaviour
     {
@@ -18,6 +19,7 @@ namespace Player
         {
 
         }
+        
         public void SetPlayerMaterial(Material playerMat)
         {
             //Debug.Log("Player spawn"+playerMat.name);
@@ -27,10 +29,10 @@ namespace Player
         {
             this.controller = controller;
         }
-        public void MovePad(PadData data)
+        public void MovePad(int dir)
         {
-            Vector3 moveToPos = new Vector3(data.xPos, 0, data.yPos);
-            this.transform.position = moveToPos;
+            Debug.Log("inputs");
+            rb.velocity=(dir * moveingSpeed);
         }
     }
 }
